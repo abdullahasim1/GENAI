@@ -117,7 +117,6 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-4 text-xs text-gray-500 text-center">
-            Use mock credentials:{" "}
           </p>
 
           <p className="mt-4 text-sm text-gray-600 text-center">
