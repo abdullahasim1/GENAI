@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockCandidates, mockJobs } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
 import { scoreCandidateWithAI } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
@@ -14,41 +14,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch candidate from database
-    let candidate = mockCandidates.find((c) => c.id === candidateId);
-    
-    // If not found in DB, use data from request
-    if (!candidate && body.candidate) {
-      candidate = body.candidate;
-    } else if (!candidate) {
+    const candidateRows = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        job_id as "jobId",
+        name,
+        email,
+        phone,
+        resume_text as "rawText",
+        skills,
+        match_score as "matchScore",
+        status
+      FROM candidates
+      WHERE id = ${candidateId}
+      LIMIT 1
+    `;
+
+    const candidate = candidateRows[0] || body.candidate;
+
+    if (!candidate) {
       return NextResponse.json(
         { error: "Candidate not found" },
         { status: 404 }
       );
     }
 
-    // Fetch job from database
-    let job = mockJobs.find((j) => j.id === jobId);
-    
-    // If not found in DB, use data from request
-    if (!job && body.job) {
-      job = body.job;
-    } else if (!job) {
+    const jobRows = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        title,
+        description,
+        required_skills as "requiredSkills",
+        experience_required as "experienceRequired"
+      FROM jobs
+      WHERE id = ${jobId}
+      LIMIT 1
+    `;
+
+    const job = jobRows[0] || body.job;
+
+    if (!job) {
       return NextResponse.json(
         { error: "Job not found" },
         { status: 404 }
       );
     }
 
-    // Use AI for intelligent candidate scoring
     let scoringResult;
     try {
       scoringResult = await scoreCandidateWithAI(
         {
           name: candidate.name || "Unknown",
           skills: candidate.skills || [],
-          experience: candidate.experience || 0,
-          summary: candidate.summary || "",
+          experience: (candidate as any).experience || 0,
+          summary: (candidate as any).summary || "",
         },
         {
           title: job.title,
@@ -59,7 +80,6 @@ export async function POST(request: NextRequest) {
       );
     } catch (aiError) {
       console.error("AI Scoring failed, using fallback:", aiError);
-      // Fallback to basic scoring if AI fails
       const candidateSkills = (candidate.skills || []).map((s: string) =>
         s.toLowerCase()
       );
@@ -68,13 +88,15 @@ export async function POST(request: NextRequest) {
       );
 
       const matchedSkills = requiredSkills.filter((skill: string) =>
-        candidateSkills.some((cs: string) => cs.includes(skill) || skill.includes(cs))
+        candidateSkills.some(
+          (cs: string) => cs.includes(skill) || skill.includes(cs)
+        )
       );
 
       const skillMatchPercentage =
         (matchedSkills.length / requiredSkills.length) * 100;
       const experienceScore = Math.min(
-        ((candidate.experience || 0) / job.experienceRequired) * 30,
+        (((candidate as any).experience || 0) / job.experienceRequired) * 30,
         30
       );
 
@@ -84,7 +106,9 @@ export async function POST(request: NextRequest) {
         ),
         missingSkills: requiredSkills.filter(
           (skill: string) =>
-            !candidateSkills.some((cs: string) => cs.includes(skill) || skill.includes(cs))
+            !candidateSkills.some(
+              (cs: string) => cs.includes(skill) || skill.includes(cs)
+            )
         ),
         strengthAreas: matchedSkills,
         recommendation: "review",
@@ -92,32 +116,47 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Update candidate in database with score
-    const candidateIndex = mockCandidates.findIndex(
-      (c) => c.id === candidateId
-    );
-    if (candidateIndex !== -1) {
-      mockCandidates[candidateIndex] = {
-        ...mockCandidates[candidateIndex],
-        matchScore: scoringResult.matchScore,
-        missingSkills: scoringResult.missingSkills,
-        strengthAreas: scoringResult.strengthAreas,
-        status:
+    await sql`
+      UPDATE candidates
+      SET
+        match_score = ${scoringResult.matchScore},
+        status = ${
           scoringResult.recommendation === "shortlisted"
             ? "shortlisted"
             : scoringResult.recommendation === "rejected"
             ? "rejected"
-            : "review",
-        aiReasoning: scoringResult.reasoning,
-      };
-    }
+            : "review"
+        }
+      WHERE id = ${candidateId}
+    `;
+
+    const updatedRows = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        job_id as "jobId",
+        name,
+        email,
+        phone,
+        resume_text as "rawText",
+        skills,
+        match_score as "matchScore",
+        status,
+        created_at as "uploadedAt"
+      FROM candidates
+      WHERE id = ${candidateId}
+      LIMIT 1
+    `;
+
+    const updatedCandidate = updatedRows[0] || null;
 
     return NextResponse.json({
       success: true,
       scoring: scoringResult,
-      candidate: candidateIndex !== -1 ? mockCandidates[candidateIndex] : null,
+      candidate: updatedCandidate,
     });
   } catch (error) {
+    console.error("Candidate score error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

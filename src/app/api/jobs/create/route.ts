@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockJobs } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,22 +15,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create job
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newJob = {
-      id: jobId,
-      title,
-      description,
-      requiredSkills: Array.isArray(requiredSkills)
-        ? requiredSkills
-        : requiredSkills.split(",").map((s: string) => s.trim()),
-      experienceRequired: experienceRequired || 0,
-      userId,
-      createdAt: new Date().toISOString(),
-      status: "active",
-    };
+    const skillsArray = Array.isArray(requiredSkills)
+      ? requiredSkills
+      : requiredSkills.split(",").map((s: string) => s.trim());
 
-    mockJobs.push(newJob);
+    const jobId = randomUUID();
+
+    const rows = await sql`
+      INSERT INTO jobs (
+        id,
+        user_id,
+        title,
+        description,
+        required_skills,
+        experience_required,
+        status
+      )
+      VALUES (
+        ${jobId},
+        ${userId},
+        ${title},
+        ${description},
+        ${skillsArray},
+        ${experienceRequired || 0},
+        'active'
+      )
+      RETURNING
+        id,
+        user_id as "userId",
+        title,
+        description,
+        required_skills as "requiredSkills",
+        experience_required as "experienceRequired",
+        status,
+        created_at as "createdAt"
+    `;
+
+    const newJob = rows[0];
 
     return NextResponse.json(
       {
@@ -39,6 +61,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error("Create job error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -59,13 +82,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userJobs = mockJobs.filter((job) => job.userId === userId);
+    const userJobs = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        title,
+        description,
+        required_skills as "requiredSkills",
+        experience_required as "experienceRequired",
+        status,
+        created_at as "createdAt"
+      FROM jobs
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `;
 
     return NextResponse.json({
       success: true,
       jobs: userJobs,
     });
   } catch (error) {
+    console.error("Get jobs error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

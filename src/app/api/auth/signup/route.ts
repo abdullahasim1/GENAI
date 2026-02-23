@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockUsers } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,42 +15,44 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user exists
-    const existingUser = mockUsers.find((u) => u.email === email);
-    if (existingUser) {
+    const existing = await sql`
+      SELECT id
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+    `;
+
+    if (existing.length > 0) {
       return NextResponse.json(
         { error: "User already exists" },
         { status: 400 }
       );
     }
 
-    // Create user
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newUser = {
-      id: userId,
-      name,
-      email,
-      password, // In production, hash this
-      createdAt: new Date().toISOString(),
-    };
+    const userId = randomUUID();
 
-    mockUsers.push(newUser);
+    await sql`
+      INSERT INTO users (id, name, email, password)
+      VALUES (${userId}, ${name}, ${email}, ${password})
+    `;
 
-    // Mock JWT token
+    // Mock JWT token (keeps existing frontend contract)
     const token = `mock_jwt_${userId}_${Date.now()}`;
 
     return NextResponse.json(
       {
         success: true,
         user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
+          id: userId,
+          name,
+          email,
         },
         token,
       },
       { status: 201 }
     );
   } catch (error) {
+    console.error("Signup error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockCandidates } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
 import { parseResumeWithAI } from "@/lib/ai";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,10 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract text from file (PDF or text)
-    // For reliability in this project, we avoid heavy PDF parsing libraries
-    // and simply read the file as text. This works for .txt and many simple PDFs,
-    // and guarantees the API will not crash.
     let extractedText = "";
     try {
       extractedText = await file.text();
@@ -45,7 +42,6 @@ export async function POST(request: NextRequest) {
     try {
       parsedData = await parseResumeWithAI(extractedText);
     } catch (aiError) {
-      // Fallback to basic parsing if AI fails
       console.error("AI parsing failed, using fallback:", aiError);
       parsedData = {
         name: "Unknown",
@@ -58,21 +54,51 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Save candidate
-    const candidateId = `candidate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const candidate = {
-      id: candidateId,
-      jobId,
-      userId,
-      ...parsedData,
-      rawText: extractedText, // Store original text
-      fileName: file.name,
-      uploadedAt: new Date().toISOString(),
-      matchScore: null, // Will be calculated later
-      status: "pending",
-    };
+    const candidateId = randomUUID();
+    const skillsArray = Array.isArray(parsedData.skills)
+      ? parsedData.skills
+      : [];
 
-    mockCandidates.push(candidate);
+    const rows = await sql`
+      INSERT INTO candidates (
+        id,
+        user_id,
+        job_id,
+        name,
+        email,
+        phone,
+        resume_text,
+        skills,
+        match_score,
+        status
+      )
+      VALUES (
+        ${candidateId},
+        ${userId},
+        ${jobId},
+        ${parsedData.name},
+        ${parsedData.email},
+        ${parsedData.phone},
+        ${extractedText},
+        ${skillsArray},
+        NULL,
+        'pending'
+      )
+      RETURNING
+        id,
+        user_id as "userId",
+        job_id as "jobId",
+        name,
+        email,
+        phone,
+        resume_text as "rawText",
+        skills,
+        match_score as "matchScore",
+        status,
+        created_at as "uploadedAt"
+    `;
+
+    const candidate = rows[0];
 
     return NextResponse.json({
       success: true,

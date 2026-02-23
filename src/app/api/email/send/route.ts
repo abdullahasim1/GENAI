@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockEmailLogs } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
 import { generateEmailWithAI } from "@/lib/ai";
 import { sendEmail } from "@/lib/email";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       interviewTime,
       interviewLocation,
       userId,
-      emailType = "invite", // "invite" | "rejection" | "followup"
+      emailType = "invite",
     } = body;
 
     if (!candidateEmail || !candidateName || !jobTitle) {
@@ -24,7 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use AI to generate professional email
     let emailContent;
     try {
       emailContent = await generateEmailWithAI(
@@ -39,14 +39,12 @@ export async function POST(request: NextRequest) {
       );
     } catch (aiError) {
       console.error("AI Email Generation failed, using fallback:", aiError);
-      // Fallback email
       emailContent = {
         subject: `Interview Invitation - ${jobTitle} Position at HireGen AI`,
         body: `Dear ${candidateName},\n\nThank you for your interest in the ${jobTitle} position.\n\nBest regards,\nHireGen AI Team`,
       };
     }
 
-    // Send email using Nodemailer
     let emailResult;
     try {
       emailResult = await sendEmail(
@@ -56,42 +54,66 @@ export async function POST(request: NextRequest) {
       );
     } catch (emailError) {
       console.error("Email sending error:", emailError);
-      // Continue even if email fails (might be in dev mode)
       emailResult = {
         success: true,
         messageId: "mock_id",
         note: "Email not sent (check SMTP configuration)",
-      };
+      } as any;
     }
 
-    // Log email
-    const emailId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const emailLog = {
-      id: emailId,
-      userId,
-      candidateEmail,
-      candidateName,
-      jobTitle,
-      subject: emailContent.subject,
-      body: emailContent.body,
-      status: emailResult.success ? "sent" : "failed",
-      sentAt: new Date().toISOString(),
-      interviewDate,
-      interviewTime,
-      interviewLocation,
-      emailType,
-      messageId: emailResult.messageId,
-    };
+    const emailId = randomUUID();
 
-    mockEmailLogs.push(emailLog);
+    const rows = await sql`
+      INSERT INTO email_logs (
+        id,
+        user_id,
+        candidate_id,
+        job_id,
+        subject,
+        body,
+        to_email,
+        status
+      )
+      VALUES (
+        ${emailId},
+        ${userId},
+        NULL,
+        NULL,
+        ${emailContent.subject},
+        ${emailContent.body},
+        ${candidateEmail},
+        ${emailResult.success ? "sent" : "failed"}
+      )
+      RETURNING
+        id,
+        user_id as "userId",
+        candidate_id as "candidateId",
+        job_id as "jobId",
+        subject,
+        body,
+        to_email as "candidateEmail",
+        status,
+        sent_at as "sentAt"
+    `;
+
+    const emailLog = rows[0];
 
     return NextResponse.json({
       success: true,
-      email: emailLog,
+      email: {
+        ...emailLog,
+        candidateName,
+        jobTitle,
+        interviewDate,
+        interviewTime,
+        interviewLocation,
+        emailType,
+        messageId: emailResult.messageId,
+      },
       message: emailResult.success
         ? "Email sent successfully"
         : "Email generated but not sent (check SMTP config)",
-      previewUrl: emailResult.previewUrl,
+      previewUrl: (emailResult as any).previewUrl,
     });
   } catch (error) {
     console.error("Email API Error:", error);
@@ -115,13 +137,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userEmails = mockEmailLogs.filter((email) => email.userId === userId);
+    const emails = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        candidate_id as "candidateId",
+        job_id as "jobId",
+        subject,
+        body,
+        to_email as "candidateEmail",
+        status,
+        sent_at as "sentAt"
+      FROM email_logs
+      WHERE user_id = ${userId}
+      ORDER BY sent_at DESC
+    `;
 
     return NextResponse.json({
       success: true,
-      emails: userEmails,
+      emails,
     });
   } catch (error) {
+    console.error("Email logs error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

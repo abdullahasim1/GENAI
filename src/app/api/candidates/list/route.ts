@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockCandidates } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,20 +14,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let candidates = mockCandidates.filter((c) => c.userId === userId);
+    const whereJob = jobId
+      ? sql`AND job_id = ${jobId}`
+      : sql``;
 
-    if (jobId) {
-      candidates = candidates.filter((c) => c.jobId === jobId);
-    }
-
-    // Sort by match score (highest first)
-    candidates.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    const candidates = await sql`
+      SELECT
+        id,
+        user_id as "userId",
+        job_id as "jobId",
+        name,
+        email,
+        phone,
+        resume_text as "rawText",
+        skills,
+        match_score as "matchScore",
+        status,
+        created_at as "uploadedAt"
+      FROM candidates
+      WHERE user_id = ${userId}
+      ${whereJob}
+      ORDER BY COALESCE(match_score, 0) DESC, created_at DESC
+    `;
 
     return NextResponse.json({
       success: true,
       candidates,
     });
   } catch (error) {
+    console.error("Candidates list error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

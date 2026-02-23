@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockUsers } from "@/lib/mock-db";
+import { sql } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,19 +13,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user
-    const user = mockUsers.find(
-      (u) => u.email === email && u.password === password
-    );
+    const rows = await sql`
+      SELECT id, name, email, password
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+    `;
 
-    if (!user) {
+    const user = rows[0];
+
+    if (!user || user.password !== password) {
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Mock JWT token
     const token = `mock_jwt_${user.id}_${Date.now()}`;
 
     return NextResponse.json({
@@ -37,7 +40,8 @@ export async function POST(request: NextRequest) {
       },
       token,
     });
-  } catch {
+  } catch (error) {
+    console.error("Login error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
