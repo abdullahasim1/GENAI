@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* ================= ROOT THEME ================= */
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ================= FADE IN ================= */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+/* ================= FLOATING BLOBS ================= */
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(40px, -60px) scale(1.1);
+  }
+  66% {
+    transform: translate(-30px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 10s ease-in-out infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* ================= GRADIENT BUTTON ================= */
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradientMove 6s ease infinite;
+}
+
+/* ================= SHINE EFFECT ================= */
+
+@keyframes shine {
+  0% {
+    left: -120%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+
+.group:hover .group-hover\:animate-shine {
+  animation: shine 1s ease forwards;
+}
+
+/* ================= GLOW PULSE ================= */
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0px rgba(6, 182, 212, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(6, 182, 212, 0.6);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s infinite;
+}
+
+/* ================= SMOOTH SCROLL ================= */
+
+html {
+  scroll-behavior: smooth;
+}
