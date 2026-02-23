@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!extractedText || extractedText.trim().length === 0) {
+    // Clean text to ensure valid UTF-8 for Postgres (remove null bytes)
+    const cleanedText = extractedText.replace(/\u0000/g, "");
+
+    if (!cleanedText || cleanedText.trim().length === 0) {
       return NextResponse.json(
         { error: "File appears to be empty or could not be parsed" },
         { status: 400 }
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Use AI to parse resume
     let parsedData;
     try {
-      parsedData = await parseResumeWithAI(extractedText);
+      parsedData = await parseResumeWithAI(cleanedText);
     } catch (aiError) {
       console.error("AI parsing failed, using fallback:", aiError);
       parsedData = {
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
         ${parsedData.name},
         ${parsedData.email},
         ${parsedData.phone},
-        ${extractedText},
+        ${cleanedText},
         ${skillsArray},
         NULL,
         'pending'

@@ -12,8 +12,9 @@ function getAiProvider(): "hf" | "openai" | "gemini" {
   if (configured === "openai") return "openai";
   if (configured === "gemini") return "gemini";
 
-  if (hasHfConfig()) return "hf";
+  // Default preference: Gemini (if configured) → HF → OpenAI
   if (hasGeminiConfig()) return "gemini";
+  if (hasHfConfig()) return "hf";
   return "openai";
 }
 
@@ -86,8 +87,16 @@ Return only the JSON object, no markdown, no code blocks, just the JSON.`;
       summary: parsed.summary || "",
     };
   } catch (error) {
-    console.error("AI Resume Parsing Error:", error);
-    throw new Error("Failed to parse resume with AI");
+    console.warn("AI Resume Parsing Error, using fallback parser:", error);
+    return {
+      name: "Unknown",
+      email: "",
+      phone: "",
+      skills: [],
+      experience: 0,
+      education: "",
+      summary: "",
+    };
   }
 }
 
@@ -174,8 +183,47 @@ Return only the JSON object, no markdown, no code blocks.`;
       reasoning: scoring.reasoning || "",
     };
   } catch (error) {
-    console.error("AI Scoring Error:", error);
-    throw new Error("Failed to score candidate with AI");
+    console.warn("AI Scoring Error, using fallback algorithm:", error);
+
+    const candidateSkills = (candidateData.skills || []).map((s: string) =>
+      s.toLowerCase()
+    );
+    const requiredSkills = jobData.requiredSkills.map((s: string) =>
+      s.toLowerCase()
+    );
+
+    const matchedSkills = requiredSkills.filter((skill: string) =>
+      candidateSkills.some(
+        (cs: string) => cs.includes(skill) || skill.includes(cs)
+      )
+    );
+
+    const skillMatchPercentage =
+      requiredSkills.length > 0
+        ? (matchedSkills.length / requiredSkills.length) * 100
+        : 0;
+
+    const experienceScore = jobData.experienceRequired
+      ? Math.min(
+          (candidateData.experience / jobData.experienceRequired) * 30,
+          30
+        )
+      : 0;
+
+    return {
+      matchScore: Math.round(
+        Math.min(skillMatchPercentage * 0.7 + experienceScore, 100)
+      ),
+      missingSkills: requiredSkills.filter(
+        (skill: string) =>
+          !candidateSkills.some(
+            (cs: string) => cs.includes(skill) || skill.includes(cs)
+          )
+      ),
+      strengthAreas: matchedSkills,
+      recommendation: "review",
+      reasoning: "Basic scoring algorithm (fallback without AI)",
+    };
   }
 }
 
@@ -257,8 +305,13 @@ Return only the JSON object, no markdown, no code blocks.`;
       personalized: questions.personalized || "",
     };
   } catch (error) {
-    console.error("AI Question Generation Error:", error);
-    throw new Error("Failed to generate questions with AI");
+    console.warn("AI Question Generation Error, using fallback:", error);
+    return {
+      technical: [],
+      behavioral: [],
+      scenario: [],
+      personalized: "",
+    };
   }
 }
 
@@ -344,8 +397,11 @@ Return ONLY a valid JSON object:
       body: email.body || "",
     };
   } catch (error) {
-    console.error("AI Email Generation Error:", error);
-    throw new Error("Failed to generate email with AI");
+    console.warn("AI Email Generation Error, using fallback:", error);
+    return {
+      subject: `Update about your application for ${jobTitle}`,
+      body: `Dear ${candidateName},\n\nThank you for your interest in the ${jobTitle} position.\n\nBest regards,\nHireGen AI Team`,
+    };
   }
 }
 
@@ -406,7 +462,13 @@ Return only the JSON object, no markdown, no code blocks.`;
       actionRequired: analysis.actionRequired || false,
     };
   } catch (error) {
-    console.error("AI Sentiment Analysis Error:", error);
-    throw new Error("Failed to analyze email sentiment");
+    console.warn("AI Sentiment Analysis Error, using fallback:", error);
+    return {
+      sentiment: "neutral",
+      urgency: "medium",
+      tone: "professional",
+      summary: "",
+      actionRequired: false,
+    };
   }
 }

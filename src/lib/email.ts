@@ -52,8 +52,7 @@ export async function sendEmail(
       text: body, // Plain text version
     };
 
-    // In development without SMTP, this will fail gracefully
-    // In production, ensure EMAIL_HOST, EMAIL_USER, EMAIL_PASS are set
+    // In development without SMTP, this may fail; we handle below
     const info = await transporter.sendMail(mailOptions);
 
     return {
@@ -62,16 +61,12 @@ export async function sendEmail(
       previewUrl: nodemailer.getTestMessageUrl(info), // For testing
     };
   } catch (error) {
-    console.error("Email sending error:", error);
-    // In development, return success anyway (mock mode)
-    if (process.env.NODE_ENV === "development") {
-      return {
-        success: true,
-        messageId: "mock_message_id",
-        previewUrl: null,
-        note: "Email not actually sent (development mode)",
-      };
-    }
-    throw new Error("Failed to send email");
+    console.warn("Email sending error, returning mock response:", error);
+    return {
+      success: false,
+      messageId: "mock_message_id",
+      previewUrl: null,
+      note: "Email not sent (check SMTP configuration)",
+    };
   }
 }
