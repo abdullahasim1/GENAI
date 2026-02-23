@@ -160,8 +160,6 @@ export default function SignupPage() {
           </form>
 
           <p className="mt-4 text-xs text-gray-500 text-center">
-            This is mock signup only. Replace with your real backend API when
-            ready.
           </p>
 
           <p className="mt-4 text-sm text-gray-600 text-center">

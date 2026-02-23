@@ -118,7 +118,6 @@ export default function LoginPage() {
 
           <p className="mt-4 text-xs text-gray-500 text-center">
             Use mock credentials:{" "}
-            <span className="font-mono">hr@hiregen.ai / password123</span>
           </p>
 
           <p className="mt-4 text-sm text-gray-600 text-center">
