@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { sql, ensureDb } from "@/lib/db";
 import { scoreCandidateWithAI } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDb();
     const body = await request.json();
     const { candidateId, jobId } = body;
 

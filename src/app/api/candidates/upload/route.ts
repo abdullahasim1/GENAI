@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { sql, ensureDb } from "@/lib/db";
 import { parseResumeWithAI } from "@/lib/ai";
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDb();
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const jobId = formData.get("jobId") as string;

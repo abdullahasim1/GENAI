@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { sql, ensureDb } from "@/lib/db";
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDb();
     const body = await request.json();
     const { title, description, requiredSkills, experienceRequired, userId } =
       body;
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
 // Get all jobs for a user
 export async function GET(request: NextRequest) {
   try {
+    await ensureDb();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
