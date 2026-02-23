@@ -5,31 +5,28 @@ import { Mail, Phone, MapPin } from "lucide-react";
 export default function Contact() {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-6 py-16">
-
       {/* Page Header */}
       <div className="text-center mb-14 max-w-2xl">
         <h1 className="text-4xl md:text-5xl font-bold text-cyan-600 mb-4">
           Contact Us
         </h1>
         <p className="text-gray-600 text-lg">
-          Have questions about HireGen AI? Reach out to us and our team will get back to you as soon as possible.
+          Have questions about HireGen AI? Reach out to us and our team will get
+          back to you as soon as possible.
         </p>
       </div>
 
       {/* Main Contact Card */}
       <div className="w-full max-w-4xl bg-white shadow-2xl rounded-3xl p-10 md:p-14 grid md:grid-cols-2 gap-12">
-
         {/* Contact Info */}
         <div className="space-y-8">
-          <h2 className="text-2xl font-semibold text-cyan-600">
-            Get In Touch
-          </h2>
+          <h2 className="text-2xl font-semibold text-cyan-600">Get In Touch</h2>
 
           <div className="flex items-start gap-4">
             <Mail className="text-cyan-600 mt-1" />
             <div>
               <p className="font-medium text-gray-800">Email</p>
-              <p className="text-gray-600 text-sm">hiregenai@email.com</p>
+              <p className="text-gray-600 text-sm">maryamamjad621@gmail.com</p>
             </div>
           </div>
 
@@ -37,7 +34,7 @@ export default function Contact() {
             <Phone className="text-cyan-600 mt-1" />
             <div>
               <p className="font-medium text-gray-800">Phone</p>
-              <p className="text-gray-600 text-sm">+92 300 0000000</p>
+              <p className="text-gray-600 text-sm">+92 3147390062</p>
             </div>
           </div>
 
@@ -52,7 +49,6 @@ export default function Contact() {
 
         {/* Contact Form */}
         <form className="space-y-6">
-
           <input
             type="text"
             placeholder="Your Name"
@@ -77,11 +73,8 @@ export default function Contact() {
           >
             Send Message
           </button>
-
         </form>
-
       </div>
-
     </div>
   );
 }
